@@ -3,7 +3,7 @@
 TODO : 
  1. Faire plein de boutons (virer les trucs qui servent pas, et renorm du gradient)
  2. Gérer les zig-zag
- 3. Ecrire le flow unitaire, créer une fonction menger puissance n
+ 3. Ecrire le flow unitaire, créer une fonction menger puissance n (à vérifier)
  4. Chirurgie
  5. UN CODE TOUT JOLIE !
 
@@ -14,8 +14,14 @@ float vertexSize = 10;    // for drawing vertices as disks
 int backgroundColor = 255;
 boolean make_curve = true;
 
-boolean flowMengerHomothetic = false;
-boolean flowMengerRenormalized = false;
+public static final int FLOW_MENGER_HOMOTHETIC_SIMPLE = 0;
+public static final int FLOW_MENGER_RENORMALIZED_SIMPLE = 1;
+public static final int FLOW_MENGER_HOMOTHETIC_UNIT = 2;
+public static final int FLOW_MENGER_HOMOTHETIC_POWER = 3;
+
+boolean flow = false;
+int mode = FLOW_MENGER_HOMOTHETIC_SIMPLE;
+float power = 1;
 
 float tau = 10;       // basic time interval
 
@@ -31,7 +37,7 @@ void setup() {
 
 void draw() {
   
-  if (flowMengerHomothetic) {
+  if (flow && mode == FLOW_MENGER_HOMOTHETIC_SIMPLE) {
     float oldArea = C.area();
     PVector oldCentroid = C.centroid();
     C.vertices = C.getMengerFlows(tau);
@@ -45,8 +51,40 @@ void draw() {
   
   }
   
-  if (flowMengerRenormalized) {
-    // todo
+  if (flow && mode == FLOW_MENGER_RENORMALIZED_SIMPLE) {
+    PVector oldCentroid = C.centroid();
+    C.vertices = C.getRenormalizedMengerFlows(tau);
+    
+    PVector newCentroid =  C.centroid();
+    C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
+  }
+  
+  if (flow && mode == FLOW_MENGER_HOMOTHETIC_UNIT) {
+    float oldArea = C.area();
+    PVector oldCentroid = C.centroid();
+    C.vertices = C.getUnitMengerFlows(tau);
+    float newArea = C.area();
+    
+    float lambda = sqrt(oldArea / newArea);
+    C.vertices = C.getHomothetic(lambda);
+  
+    PVector newCentroid =  C.centroid();
+    C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
+  
+  }
+  
+  if (flow && mode == FLOW_MENGER_HOMOTHETIC_POWER) {
+    float oldArea = C.area();
+    PVector oldCentroid = C.centroid();
+    C.vertices = C.getPowerMengerFlows(tau, power);
+    float newArea = C.area();
+    
+    float lambda = sqrt(oldArea / newArea);
+    C.vertices = C.getHomothetic(lambda);
+  
+    PVector newCentroid =  C.centroid();
+    C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
+  
   }
   
   
@@ -58,7 +96,9 @@ void draw() {
   
   drawInformationText("turning number : "+C.turningNumber());
   drawInformationText("area : "+C.area());
-  drawInformationText("tau = "+tau);
+  drawInformationText("tau = " + tau + "(use 'u' and 'i' key to change)");
+  drawInformationText("mode = " + modeToText(mode) + "(use 'm' key to change)");
+  drawInformationText("power = " + power  + "(use 'e' and 'r' key to change)");
   
   C.drawMengerEdge();
   C.drawCentroid();
@@ -68,6 +108,14 @@ void draw() {
 void drawInformationText(String str) {
   text(str, -width/2+10, height/2-informationYOffset);
   informationYOffset += 20;
+}
+
+String modeToText(int m) {
+  if (m == 0) return "Homothetic Simple";
+  if (m == 1) return "Renormalized Simple";
+  if (m == 2) return "Homothetic Unit";
+  if (m == 3) return "Homothetic Power";
+  return "Unkwnown";
 }
 
 void mouseClicked() {
@@ -95,18 +143,20 @@ void keyReleased() {
   }
  
   if (key == 'f') {
-    flowMengerHomothetic = !flowMengerHomothetic;
-    flowMengerRenormalized = false;
+    flow = !flow;
   }
   
-  if (key == 'g') {
-    flowMengerRenormalized = !flowMengerRenormalized;
-    flowMengerHomothetic = false;
+  if (key == 'm') {
+    mode = (mode + 1) % 4;
   }
   
   if (key == 'u') tau *= 2;
   
-  if (key == 'd') tau *= 0.5;
+  if (key == 'i') tau *= 0.5;
+  
+  if (key == 'e') power *= 2;
+  
+  if (key == 'r') power *= 0.5;
   
 }
 
@@ -237,14 +287,6 @@ class Curve {
     PVector v2 = midAngle(v.copy(), p.copy(), vm.copy());
     PVector p2 = midAngle(p.copy(), v.copy(), pm.copy());
     
-    // print("Seg 1 : " + p + " " + p2 + "\n");
-    
-    // print("Seg 2 : " + v + " " + v2 + "\n");
-    
-        stroke(0, 200, 255);
-        line(v.x, v.y, v2.x, v2.y);
-        line(p.x, p.y, p2.x, p2.y);
-    
     PVector intersection = intersection(v.copy(), v2.copy(), p.copy(), p2.copy());
     if (intersection == null) return null;
     
@@ -279,6 +321,46 @@ class Curve {
     return vectors;
   }
   
+  ArrayList<PVector> areaGradient() {  // n-vector gradient of the area, for open or closed curves
+    ArrayList<PVector> gradA = new ArrayList<PVector>();
+    int n = vertices.size();
+    PVector e1 = new PVector();
+    for (int i=0; i<n; i++) {
+      if (!this.closed && (i==0 || i==n-1)) {
+        if (i==0) e1 = vertices.get(1).copy();  // only the next position
+        if (i==n-1) e1 = vertices.get(n-2).copy().mult(-1); // only the previous position, negative
+      } else {
+        e1 = vertices.get((i+1)%n).copy();
+        e1.sub(vertices.get((i-1+n)%n));
+      }
+      e1.rotate(HALF_PI);
+      e1.mult(-0.5);
+      gradA.add(e1);
+    }  
+    return(gradA);
+  }
+
+  ArrayList<PVector> getRenormalizedMengerFlows(float tau) {  // renormalized mean curvature
+    ArrayList<PVector> H = this.getMengerFlows(tau);
+    ArrayList<PVector> gA = this.areaGradient();
+    float lambda = - ndot(H, gA)/ndot(gA, gA);
+    return(nsum(H, nmult(gA, lambda)));
+  }
+  
+  ArrayList<PVector> getUnitMengerFlows(float tau) {
+    ArrayList<PVector> vectors = new ArrayList<PVector>();
+    for (int i = 0; i < vertices.size(); i++) {
+      PVector flow = getMengerFlow(i, tau);
+      flow.div(flow.mag()).add(vertices.get(i));
+      vectors.add(flow);
+    }
+    return vectors;
+  }
+  
+  ArrayList<PVector> getPowerMengerFlows(float tau, float power) {
+    return npow(getMengerFlows(tau), power);
+  }
+  
   void drawMengerEdge() {
     for (int i = 0; i < vertices.size(); i++) {
       PVector v = vertices.get((i) % vertices.size());
@@ -301,21 +383,49 @@ class Curve {
 
 //////// MENGER SUBROUTINES  ////////////
 
+/**
+ * Retourne un point tels que l'angle entre les segments [center;left] et [center;right] soit les mêmes, et que la distance entre ce point et le centre soit 1.
+ *
+ * @param center Le point de référence
+ * @param left Le premier point
+ * @param right Le deuxième point
+ *
+ * @return Le point au milieu de l'angle
+ */
 PVector midAngle(PVector center, PVector left, PVector right) {
   
+  // Par acquis de conscience, on copie les 3 vecteurs
+  center = center.copy();
+  left = left.copy();
+  right = right.copy();
+  
+  // On se place dans le cas ou le centre est égal à zero
   left.sub(center);
   right.sub(center);
   
+  // On normalize left et right
   left.div(left.mag());
   right.div(right.mag());
   
+  // Le point d'angle entre left et right et l'addition de ses deux points
   left.add(right);
     
+  // On retourne ce point dans le cas ou le centre n'est plus égal à zéro
   return center.add(left);
   
 }
 
-PVector intersection(PVector a1, PVector a2, PVector b1, PVector b2) { // Retourne le PVector de l'intersection de deux droites passant respectivemetnt par a1 et a2, et b1 et b2.
+/**
+ * Retourne le PVector de l'intersection de deux droites passant respectivemetnt par a1 et a2, et b1 et b2.
+ *
+ * @param a1 Un premier point appartenant à la première droite
+ * @param a2 Un deuxième point appartenant à la première droite
+ * @param b1 Un premier point appartenant à la deuxième droite
+ * @param b2 Un deuxième point appartenant à la deuxième droite
+ *
+ * @return Le PVector de l'intersection de deux droites
+ */
+PVector intersection(PVector a1, PVector a2, PVector b1, PVector b2) {
   
   a1.z = 1;
   a2.z = 1;
@@ -328,12 +438,12 @@ PVector intersection(PVector a1, PVector a2, PVector b1, PVector b2) { // Retour
   // On vérifie par acquis de conscience que les droites ne sont pas parrallèles
   if (p.z == 0) return null;
   
+  // On retourne le point obtenu
   p.div(p.z);
   return p;
 }
 
 //////// SUBROUTINES  ////////////
-
 
 Curve regularngon(int n, float xo, float yo, float radius) {
   C = new Curve();
@@ -367,4 +477,44 @@ float distance(PVector p1) {
 PVector vectorToUnit(PVector v) {
   float d = distance(v);
   return new PVector(v.x / d, v.y / d);
+}
+
+float ndot(ArrayList<PVector> U, ArrayList<PVector> V) {  // scalar product between n-vectors
+  float s = 0;
+  for (int i=0; i<min(U.size(), V.size()); i++) {
+    s += PVector.dot(U.get(i), V.get(i));
+  }
+  return(s);
+}
+
+ArrayList<PVector> nsum(ArrayList<PVector> U, ArrayList<PVector> V) {  // addition between 2 n-vectors
+  ArrayList<PVector> W = new ArrayList<PVector>();
+  for (int i=0; i<min(U.size(), V.size()); i++) {
+    W.add(PVector.add(U.get(i), V.get(i)));
+  }
+  return(W);
+}
+
+ArrayList<PVector> nmult(ArrayList<PVector> U, float lambda) {  // multiplication of n-vector by a float
+  ArrayList<PVector> W = new ArrayList<PVector>();
+  for (int i=0; i<U.size(); i++) {
+    W.add(PVector.mult(U.get(i), lambda));
+  }
+  return(W);
+}
+
+ArrayList<PVector> npow(ArrayList<PVector> U, float lambda) {  // multiplication of n-vector by a float
+  ArrayList<PVector> W = new ArrayList<PVector>();
+  for (int i=0; i<U.size(); i++) {
+    W.add(new PVector(pow(U.get(i).x, lambda), pow(U.get(i).y, lambda), pow(U.get(i).z, lambda)));
+  }
+  return(W);
+}
+
+ArrayList<PVector> nnorm(ArrayList<PVector> U) {  // multiplication of n-vector by a float
+  ArrayList<PVector> W = new ArrayList<PVector>();
+  for (int i=0; i<U.size(); i++) {
+    W.add(U.get(i).copy().div(U.get(i).mag()));
+  }
+  return(W);
 }
