@@ -14,7 +14,12 @@ float vertexSize = 10;    // for drawing vertices as disks
 int backgroundColor = 255;
 boolean make_curve = true;
 
-boolean flowMean = false, flowHarmonic = false, flowMenger = false;
+boolean flowMengerHomothetic = false;
+boolean flowMengerRenormalized = false;
+
+float tau = 10;       // basic time interval
+
+int informationYOffset = 10;
 
 void setup() {
   frameRate(25);
@@ -26,38 +31,22 @@ void setup() {
 
 void draw() {
   
-  if (flowHarmonic) {
-    float oldArea = C.area();
-    C.vertices = C.getHarmonics(0.1);
-    float newArea = C.area();
-    
-    float lamba = sqrt(oldArea / newArea);
-    C.vertices = C.getHomothetic(lamba);
-    
-    
-  }
-  
-  if (flowMean) {
-    float oldArea = C.area();
-    C.vertices = C.getMeanCurvatures(1);
-    float newArea = C.area();
-    
-    float lamba = sqrt(oldArea / newArea);
-    C.vertices = C.getHomothetic(lamba);
-  }
-  
-  if (flowMenger) {
+  if (flowMengerHomothetic) {
     float oldArea = C.area();
     PVector oldCentroid = C.centroid();
-    C.vertices = C.getMengerFlows(10);
+    C.vertices = C.getMengerFlows(tau);
     float newArea = C.area();
     
     float lambda = sqrt(oldArea / newArea);
-    // C.vertices = C.getHomothetic(lambda);
+    C.vertices = C.getHomothetic(lambda);
   
-     // PVector newCentroid =  C.centroid();
-     // C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
+    PVector newCentroid =  C.centroid();
+    C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
   
+  }
+  
+  if (flowMengerRenormalized) {
+    // todo
   }
   
   
@@ -65,14 +54,20 @@ void draw() {
   translate(width/2, height/2);  // coordinate offset to center the originf
   C.drawCurve();
   
-  text("turning number : "+C.turningNumber(),-width/2+10,height/2-10);
-  text("area : "+C.area(),-width/2+30,height/2-30);
+  informationYOffset = 10;
   
-  // C.drawMeanCurvature();
-  // C.drawHarmonics();
+  drawInformationText("turning number : "+C.turningNumber());
+  drawInformationText("area : "+C.area());
+  drawInformationText("tau = "+tau);
+  
   C.drawMengerEdge();
   C.drawCentroid();
   
+}
+
+void drawInformationText(String str) {
+  text(str, -width/2+10, height/2-informationYOffset);
+  informationYOffset += 20;
 }
 
 void mouseClicked() {
@@ -98,18 +93,20 @@ void keyReleased() {
   if (key == 's') {
     saveFrame();
   }
-  
-  if (key == 'h') {
-    flowHarmonic = !flowHarmonic;
-  }
-  
-  if (key == 'm') {
-    flowMean = !flowMean;
-  }
-  
+ 
   if (key == 'f') {
-    flowMenger = !flowMenger;
+    flowMengerHomothetic = !flowMengerHomothetic;
+    flowMengerRenormalized = false;
   }
+  
+  if (key == 'g') {
+    flowMengerRenormalized = !flowMengerRenormalized;
+    flowMengerHomothetic = false;
+  }
+  
+  if (key == 'u') tau *= 2;
+  
+  if (key == 'd') tau *= 0.5;
   
 }
 
@@ -190,62 +187,7 @@ class Curve {
     }
     return vectors;
   }
-  
-  PVector getMeanCurvature(int i) {
-    return getMeanCurvature(i, 1);
-  }
-  
-  PVector getMeanCurvature(int i, float t) {
-    PVector vi = getUnitVector(i);  
-    PVector vi_1 = getUnitVector(i - 1 + vertices.size());
-    return new PVector((vi.x - vi_1.x) * t, (vi.y - vi_1.y) * t);
-  }
-  
-  ArrayList<PVector> getMeanCurvatures(float t) {
-    ArrayList<PVector> vectors = new ArrayList<PVector>();
-    for (int i = 0; i < vertices.size(); i++) {
-      vectors.add(getMeanCurvature(i,t).add(vertices.get(i)));
-    }
-    return vectors;
-  }
-  
-  void drawMeanCurvature() {
-    for (int i = 0; i < vertices.size(); i++) {
-      PVector p = vertices.get(i);
-      PVector h = getMeanCurvature(i);
-      stroke(255, 200, 0);
-      line(p.x, p.y, p.x + h.x * 32, p.y + h.y * 32);
-    }  
-  }
-  
-  PVector getHarmonic(int i) {
-    return getHarmonic(i, 1);
-  }
-  
-  PVector getHarmonic(int i, float t) {
-    PVector vi = vertices.get((i) % vertices.size());  
-    PVector vi_1 = vertices.get((i - 1 + vertices.size()) % vertices.size());
-    PVector vip1 = vertices.get((i + 1) % vertices.size());
-    return new PVector(((vip1.x + vi_1.x) / 2 - vi.x) * t, ((vip1.y + vi_1.y) / 2 - vi.y) * t);
-  }
-  
-  ArrayList<PVector> getHarmonics(float t) {
-    ArrayList<PVector> vectors = new ArrayList<PVector>();
-    for (int i = 0; i < vertices.size(); i++) {
-      vectors.add(getHarmonic(i, t).add(vertices.get(i)));
-    }
-    return vectors;
-  }
-  
-  void drawHarmonics() {
-    for (int i = 0; i < vertices.size(); i++) {
-      PVector p = vertices.get(i);
-      PVector h = getHarmonic(i, 0.25);
-      stroke(0, 200, 255);
-      line(p.x, p.y, p.x + h.x, p.y + h.y);
-    }  
-  }
-  
+
   PVector centroid() {
     if (vertices.size() == 0) {
       return new PVector(0, 0);
