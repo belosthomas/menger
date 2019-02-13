@@ -1,11 +1,9 @@
 /*****
 
 TODO : 
- 1. Faire plein de boutons (virer les trucs qui servent pas, et renorm du gradient)
- 2. Gérer les zig-zag
- 3. Ecrire le flow unitaire, créer une fonction menger puissance n (à vérifier)
+ 1. Flow unitaire
  4. Chirurgie
- 5. UN CODE TOUT JOLIE !
+ 5. UN CODE TOUT JOLI (Nom et commentaire) !
 
 *****/
 
@@ -14,13 +12,19 @@ float vertexSize = 10;    // for drawing vertices as disks
 int backgroundColor = 255;
 boolean make_curve = true;
 
-public static final int FLOW_MENGER_HOMOTHETIC_SIMPLE = 0;
-public static final int FLOW_MENGER_RENORMALIZED_SIMPLE = 1;
-public static final int FLOW_MENGER_HOMOTHETIC_UNIT = 2;
-public static final int FLOW_MENGER_HOMOTHETIC_POWER = 3;
+static int NON_RENORMALIZE = 0;
+static int A_PRIORI = 1;
+static int A_POSTERIORI = 2;
+static int NUM_RENORMALIZATION = 3;
+
+static int FLOW_MENGER = 0;
+static int FLOW_UNITAIRE = 1;
+static int FLOW_VOISINS = 2;
+static int NUM_MODE = 3;
 
 boolean flow = false;
-int mode = FLOW_MENGER_HOMOTHETIC_SIMPLE;
+int flow_type = FLOW_MENGER;
+int flow_renormalization = A_PRIORI;
 float power = 1;
 
 float tau = 10;       // basic time interval
@@ -37,56 +41,52 @@ void setup() {
 
 void draw() {
   
-  if (flow && mode == FLOW_MENGER_HOMOTHETIC_SIMPLE) {
-    float oldArea = C.area();
-    PVector oldCentroid = C.centroid();
-    C.vertices = C.getMengerFlows(tau);
-    float newArea = C.area();
-    
-    float lambda = sqrt(oldArea / newArea);
-    C.vertices = C.getHomothetic(lambda);
+  ArrayList<PVector> edgeFlow = new ArrayList<PVector>();
   
-    PVector newCentroid =  C.centroid();
-    C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
-  
+  if (flow_type == FLOW_MENGER) {
+    edgeFlow = C.getMengerEdgeFlows();
   }
   
-  if (flow && mode == FLOW_MENGER_RENORMALIZED_SIMPLE) {
-    PVector oldCentroid = C.centroid();
-    C.vertices = C.getRenormalizedMengerFlows(tau);
-    
-    PVector newCentroid =  C.centroid();
-    C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
+  if (flow_type == FLOW_UNITAIRE) {
+    // todo
+    edgeFlow = C.getMengerEdgeFlows();
   }
   
-  if (flow && mode == FLOW_MENGER_HOMOTHETIC_UNIT) {
-    float oldArea = C.area();
-    PVector oldCentroid = C.centroid();
-    C.vertices = C.getUnitMengerFlows(tau);
-    float newArea = C.area();
-    
-    float lambda = sqrt(oldArea / newArea);
-    C.vertices = C.getHomothetic(lambda);
-  
-    PVector newCentroid =  C.centroid();
-    C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
-  
+  if (flow_type == FLOW_VOISINS) {
+    edgeFlow = C.getNeighborEdgeFlows();
   }
   
-  if (flow && mode == FLOW_MENGER_HOMOTHETIC_POWER) {
-    float oldArea = C.area();
-    PVector oldCentroid = C.centroid();
-    C.vertices = C.getPowerMengerFlows(tau, power);
-    float newArea = C.area();
+  ArrayList<PVector> vectorFlow = npow(edgeFlowToVectorFlow(edgeFlow),power);
+  
+  if (flow) {
     
-    float lambda = sqrt(oldArea / newArea);
-    C.vertices = C.getHomothetic(lambda);
-  
-    PVector newCentroid =  C.centroid();
-    C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
-  
+    if (flow_renormalization == NON_RENORMALIZE) {
+      C.vertices = C.flow(vectorFlow, tau);
+    }
+    
+    if (flow_renormalization == A_PRIORI) {
+      float oldArea = C.area();
+      PVector oldCentroid = C.centroid();
+      C.vertices = C.flow(vectorFlow, tau);
+      float newArea = C.area();
+      
+      float lambda = sqrt(oldArea / newArea);
+      C.vertices = C.getHomothetic(lambda);
+    
+      PVector newCentroid =  C.centroid();
+      C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
+    }
+    
+    if (flow_renormalization == A_POSTERIORI) {
+      PVector oldCentroid = C.centroid();
+      C.vertices = C.flow(vectorFlow,tau);
+    
+      PVector newCentroid =  C.centroid();
+      C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
+    }
+    
   }
-  
+ 
   
   background(backgroundColor);              // erases for new images
   translate(width/2, height/2);  // coordinate offset to center the originf
@@ -96,11 +96,12 @@ void draw() {
   
   drawInformationText("turning number : "+C.turningNumber());
   drawInformationText("area : "+C.area());
-  drawInformationText("tau = " + tau + "(use 'u' and 'i' key to change)");
-  drawInformationText("mode = " + modeToText(mode) + "(use 'm' key to change)");
-  drawInformationText("power = " + power  + "(use 'e' and 'r' key to change)");
+  drawInformationText("tau = " + tau + " (utiliser 'u' et 'i' pour changer)");
+  drawInformationText("mode = " + typeToText(flow_type) + " (utiliser 'm' pour changer)");
+  drawInformationText("renormalisation = " + renormalizationToText(flow_renormalization) + " (utiliser 'l' pour changer)");
+  drawInformationText("power = " + power  + " (utiliser 'e' et 'r' pour changer)");
   
-  C.drawMengerEdge();
+  C.drawEdgeFlow(edgeFlow);
   C.drawCentroid();
   
 }
@@ -110,12 +111,18 @@ void drawInformationText(String str) {
   informationYOffset += 20;
 }
 
-String modeToText(int m) {
-  if (m == 0) return "Homothetic Simple";
-  if (m == 1) return "Renormalized Simple";
-  if (m == 2) return "Homothetic Unit";
-  if (m == 3) return "Homothetic Power";
-  return "Unkwnown";
+String typeToText(int m) {
+  if (m == FLOW_MENGER) return "Menger";
+  if (m == FLOW_UNITAIRE) return "Unitaire";
+  if (m == FLOW_VOISINS) return "Voisins";
+  return "Inconnu";
+}
+
+String renormalizationToText(int m) {
+  if (m == NON_RENORMALIZE) return "Non Renormalisé";
+  if (m == A_PRIORI) return "A Priori";
+  if (m == A_POSTERIORI) return "A posteriori";
+  return "Inconnu";
 }
 
 void mouseClicked() {
@@ -147,16 +154,26 @@ void keyReleased() {
   }
   
   if (key == 'm') {
-    mode = (mode + 1) % 4;
+    flow_type = (flow_type + 1) % NUM_MODE;
+  }
+  
+  if (key == 'l') {
+    flow_renormalization = (flow_renormalization + 1) % NUM_RENORMALIZATION;
   }
   
   if (key == 'u') tau *= 2;
   
   if (key == 'i') tau *= 0.5;
   
-  if (key == 'e') power *= 2;
+  if (key == 'e'){
+   if (power >= 1) power +=1;
+   else power = 1/(1/power - 1);
+  }
   
-  if (key == 'r') power *= 0.5;
+  if (key == 'r'){
+   if (power > 1) power -= 1;
+   else power = 1/(1/power + 1);
+  }
   
 }
 
@@ -219,24 +236,6 @@ class Curve {
     }
   return(-round(totalAngle/TWO_PI+0)); // inverted to compensate for screen symmetry
   }
-  
-  PVector getVector(int i) {
-    PVector i1 = vertices.get((i + 1) % vertices.size());
-    PVector i0 = vertices.get((i + 0) % vertices.size());
-    return new PVector(i1.x - i0.x, i1.y - i0.y);
-  }
-  
-  PVector getUnitVector(int i) {
-    return vectorToUnit(getVector(i));
-  }
-  
-  ArrayList<PVector> getUnitVectors() {
-    ArrayList<PVector> vectors = new ArrayList<PVector>();
-    for (int i = 0; i < vertices.size(); i++) {
-      vectors.add(getUnitVector(i));
-    }
-    return vectors;
-  }
 
   PVector centroid() {
     if (vertices.size() == 0) {
@@ -277,12 +276,17 @@ class Curve {
   }
   
   
-  PVector getMengerEdgeFlow(int i) {
+  PVector getMengerEdgeFlow(int i) { // Rend le vecteur courbure de Menger en l'arrete (i,i+1) 
     PVector v = vertices.get((i) % vertices.size());
     PVector p = vertices.get((i + 1) % vertices.size());
     
     PVector vm = vertices.get((i - 1 + vertices.size()) % vertices.size());
     PVector pm = vertices.get((i + 2) % vertices.size());
+    
+    // On traite le cas des "zig-zag"
+    if (determinant(v.copy().sub(vm), p.copy().sub(v)) * determinant(p.copy().sub(v), pm.copy().sub(p)) < 0) {
+      return new PVector(0,0);
+    }
     
     PVector v2 = midAngle(v.copy(), p.copy(), vm.copy());
     PVector p2 = midAngle(p.copy(), v.copy(), pm.copy());
@@ -290,7 +294,7 @@ class Curve {
     PVector intersection = intersection(v.copy(), v2.copy(), p.copy(), p2.copy());
     if (intersection == null) return null;
     
-    PVector d = v.copy().sub(p); // d est un vecteur directeur de l'arrête
+    PVector d = v.copy().sub(p); // d est un vecteur directeur linéaire de l'arrête
     PVector n = new PVector(-d.y, d.x); // n est un vecteur normal à d
     n.div(n.mag());
     float r = abs(intersection.sub(v).dot(n));
@@ -303,20 +307,38 @@ class Curve {
     return n;
     
   }
-  
-  PVector getMengerFlow(int i, float t) {
-    PVector edgeFlow1 = getMengerEdgeFlow(i);
-    PVector edgeFlow2 = getMengerEdgeFlow((i - 1 + vertices.size()) % vertices.size());
-    
-    if (edgeFlow1 == null || edgeFlow2 == null) return vertices.get((i) % vertices.size()).copy();
-    
-    return edgeFlow1.add(edgeFlow2).div(2).mult(t);
-  }
-  
-  ArrayList<PVector> getMengerFlows(float t) {
+
+  ArrayList<PVector> getMengerEdgeFlows() {
     ArrayList<PVector> vectors = new ArrayList<PVector>();
     for (int i = 0; i < vertices.size(); i++) {
-      vectors.add(getMengerFlow(i, t).add(vertices.get(i)));
+      vectors.add(getMengerEdgeFlow(i));
+    }
+    return vectors;
+  }
+  
+  PVector getNeighborEdgeFlow(int i) {
+    PVector v = vertices.get((i) % vertices.size());
+    PVector p = vertices.get((i + 1) % vertices.size());
+    
+    PVector vm = vertices.get((i - 1 + vertices.size()) % vertices.size());
+    PVector pm = vertices.get((i + 2) % vertices.size());
+    
+    return vm.copy().add(pm).sub(v).sub(p);
+    
+  }
+  
+  ArrayList<PVector> getNeighborEdgeFlows() {
+    ArrayList<PVector> vectors = new ArrayList<PVector>();
+    for (int i = 0; i < vertices.size(); i++) {
+      vectors.add(getNeighborEdgeFlow(i));
+    }
+    return vectors;
+  }
+  
+  ArrayList<PVector> flow(ArrayList<PVector> f, float tau) {
+    ArrayList<PVector> vectors = new ArrayList<PVector>();
+    for (int i = 0; i < f.size(); i++) {
+      vectors.add(f.get(i).copy().mult(tau).add(vertices.get(i)));
     }
     return vectors;
   }
@@ -340,35 +362,21 @@ class Curve {
     return(gradA);
   }
 
-  ArrayList<PVector> getRenormalizedMengerFlows(float tau) {  // renormalized mean curvature
-    ArrayList<PVector> H = this.getMengerFlows(tau);
+  ArrayList<PVector> getRenormalized(ArrayList<PVector> H) {  // renormalized mean curvature
     ArrayList<PVector> gA = this.areaGradient();
     float lambda = - ndot(H, gA)/ndot(gA, gA);
     return(nsum(H, nmult(gA, lambda)));
   }
+
   
-  ArrayList<PVector> getUnitMengerFlows(float tau) {
-    ArrayList<PVector> vectors = new ArrayList<PVector>();
-    for (int i = 0; i < vertices.size(); i++) {
-      PVector flow = getMengerFlow(i, tau);
-      flow.div(flow.mag()).add(vertices.get(i));
-      vectors.add(flow);
-    }
-    return vectors;
-  }
-  
-  ArrayList<PVector> getPowerMengerFlows(float tau, float power) {
-    return npow(getMengerFlows(tau), power);
-  }
-  
-  void drawMengerEdge() {
+  void drawEdgeFlow(ArrayList<PVector> H) {
     for (int i = 0; i < vertices.size(); i++) {
       PVector v = vertices.get((i) % vertices.size());
       PVector p = vertices.get((i + 1) % vertices.size());
       
       p = p.copy().add(v).div(2);
       
-      PVector h = getMengerEdgeFlow(i);
+      PVector h = H.get(i);
       
       if (h != null) {
         h.mult(1000);
@@ -384,7 +392,7 @@ class Curve {
 //////// MENGER SUBROUTINES  ////////////
 
 /**
- * Retourne un point tels que l'angle entre les segments [center;left] et [center;right] soit les mêmes, et que la distance entre ce point et le centre soit 1.
+ * Retourne un point p tel que l'angle entre les segments [center;p] et [center;right] et celui entre les segments [center;left] et [center;p] soit les mêmes, et que la distance entre ce point et le centre soit 1.
  *
  * @param center Le point de référence
  * @param left Le premier point
@@ -441,6 +449,20 @@ PVector intersection(PVector a1, PVector a2, PVector b1, PVector b2) {
   // On retourne le point obtenu
   p.div(p.z);
   return p;
+}
+
+float determinant(PVector a, PVector b) {
+  return a.x * b.y - a.y * b.x;
+}
+
+ArrayList<PVector> edgeFlowToVectorFlow(ArrayList<PVector> edgeFlow) {
+  ArrayList<PVector> vectorFlow = new ArrayList<PVector>();
+  for(int i = 0; i< edgeFlow.size(); i++){
+      PVector edgeFlow1 = edgeFlow.get(i);
+      PVector edgeFlow2 = edgeFlow.get((i - 1 + edgeFlow.size()) % edgeFlow.size());
+      vectorFlow.add(edgeFlow1.copy().add(edgeFlow2));
+  }
+  return vectorFlow;
 }
 
 //////// SUBROUTINES  ////////////
