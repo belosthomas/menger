@@ -1,11 +1,11 @@
 /*****
-
-TODO : 
+ 
+ TODO : 
  1. Flow unitaire
  4. Chirurgie
  5. UN CODE TOUT JOLI (Nom et commentaire) !
-
-*****/
+ 
+ *****/
 
 Curve C = new Curve();
 float vertexSize = 10;    // for drawing vertices as disks
@@ -39,70 +39,68 @@ void setup() {
 }
 
 void draw() {
-  
+
   ArrayList<PVector> edgeFlow = new ArrayList<PVector>();
-  
+
   if (flow_type == FLOW_MENGER) {
     edgeFlow = C.getMengerEdgeFlows();
   }
-  
+
   if (flow_type == FLOW_UNITAIRE) {
     // todo
-    edgeFlow = C.getMengerEdgeFlows();
+    edgeFlow = C.getUnitFlows();
   }
-  
+
   if (flow_type == FLOW_VOISINS) {
     edgeFlow = C.getNeighborEdgeFlows();
   }
-  
-  ArrayList<PVector> vectorFlow = npow(edgeFlowToVectorFlow(edgeFlow),power);
-  
+
+  ArrayList<PVector> vectorFlow = npow(edgeFlowToVectorFlow(edgeFlow), power);
+
   if (flow) {
-    
+
     if (flow_renormalization == NON_RENORMALIZE) {
       C.vertices = C.flow(vectorFlow, tau);
     }
-    
+
     if (flow_renormalization == A_PRIORI) {
       float oldArea = C.area();
       PVector oldCentroid = C.centroid();
       C.vertices = C.flow(vectorFlow, tau);
       float newArea = C.area();
-      
+
       float lambda = sqrt(oldArea / newArea);
       C.vertices = C.getHomothetic(lambda);
-    
+
       PVector newCentroid =  C.centroid();
       C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
     }
-    
+
     if (flow_renormalization == A_POSTERIORI) {
       PVector oldCentroid = C.centroid();
-      C.vertices = C.flow(vectorFlow,tau);
-    
+      C.vertices = C.flow(vectorFlow, tau);
+
       PVector newCentroid =  C.centroid();
       C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
     }
-    
   }
- 
-  
+
+
   background(backgroundColor);              // erases for new images
   translate(width/2, height/2);  // coordinate offset to center the originf
   C.drawCurve();
-  
+
   informationYOffset = 10;
-  
+
   drawInformationText("nombre de tours : "+C.turningNumber());
   drawInformationText("aire : "+C.area());
   drawInformationText("tau = " + tau + " (utiliser 'p' et 'm' pour changer)");
   drawInformationText("champ = " + typeToText(flow_type) + " (utiliser 'a' pour changer)");
   drawInformationText("renormalisation = " + renormalizationToText(flow_renormalization) + " (utiliser 'z' pour changer)");
   drawInformationText("puissance = " + power  + " (utiliser 'u' et 'j' pour changer)");
-  
+
   C.drawEdgeFlow(edgeFlow);
   C.drawCentroid();
-  
 }
 
 void drawInformationText(String str) {
@@ -146,33 +144,32 @@ void keyReleased() {
   if (key == 's') {
     saveFrame();
   }
- 
+
   if (key == 'f') {
     flow = !flow;
   }
-  
+
   if (key == 'a') {
     flow_type = (flow_type + 1) % NUM_MODE;
   }
-  
+
   if (key == 'z') {
     flow_renormalization = (flow_renormalization + 1) % NUM_RENORMALIZATION;
   }
-  
+
   if (key == 'p') tau *= 2;
-  
+
   if (key == 'm') tau *= 0.5;
-  
-  if (key == 'u'){
-   if (power >= 1) power +=1;
-   else power = 1/(1/power - 1);
+
+  if (key == 'u') {
+    if (power >= 1) power +=1;
+    else power = 1/(1/power - 1);
   }
-  
-  if (key == 'j'){
-   if (power > 1) power -= 1;
-   else power = 1/(1/power + 1);
+
+  if (key == 'j') {
+    if (power > 1) power -= 1;
+    else power = 1/(1/power + 1);
   }
-  
 }
 
 ////// CLASSES  ////////
@@ -207,7 +204,7 @@ class Curve {
       ellipse(current.x, current.y, vertexSize, vertexSize);
     }
   }
-  
+
   int size() {
     return vertices.size();
   }
@@ -222,17 +219,17 @@ class Curve {
     }
     return(a/2);
   }
-  
+
   int turningNumber() {
     int n = vertices.size();
     float totalAngle = 0;
-    PVector v1,v2;
+    PVector v1, v2;
     for (int i=0; i<n; i++) {
-      v1 = PVector.sub(vertices.get((i+n-1)%n),vertices.get(i));
-      v2 = PVector.sub(vertices.get(i),vertices.get((i+1)%n));
-      totalAngle += arcAngle(v1,v2);
+      v1 = PVector.sub(vertices.get((i+n-1)%n), vertices.get(i));
+      v2 = PVector.sub(vertices.get(i), vertices.get((i+1)%n));
+      totalAngle += arcAngle(v1, v2);
     }
-  return(-round(totalAngle/TWO_PI+0)); // inverted to compensate for screen symmetry
+    return(-round(totalAngle/TWO_PI+0)); // inverted to compensate for screen symmetry
   }
 
   PVector centroid() {
@@ -246,16 +243,16 @@ class Curve {
     }
     return new PVector(x / vertices.size(), y / vertices.size());
   }
-  
+
   void drawCentroid() {
     stroke(0, 200, 0);
     PVector current = centroid();
-    ellipse(current.x, current.y, vertexSize, vertexSize); 
+    ellipse(current.x, current.y, vertexSize, vertexSize);
   }
-  
+
   ArrayList<PVector> getHomothetic(float r) {
     PVector c = centroid();
-    
+
     ArrayList<PVector> vectors = new ArrayList<PVector>();
     for (int i = 0; i < vertices.size(); i++) {
       PVector v = vertices.get(i).copy();
@@ -263,7 +260,7 @@ class Curve {
     }
     return vectors;
   }
-  
+
   ArrayList<PVector> getTranslation(PVector t) {    
     ArrayList<PVector> vectors = new ArrayList<PVector>();
     for (int i = 0; i < vertices.size(); i++) {
@@ -272,39 +269,63 @@ class Curve {
     }
     return vectors;
   }
-  
-  
-  PVector getMengerEdgeFlow(int i) { // Rend le vecteur courbure de Menger en l'arrete (i,i+1)
-    if(C.vertices.size() == 2) return new PVector(0,0);
+
+  PVector getUnitFlow(int i) { // flot de norme 1, rentrant, perpendiculaire à l'arrête
     PVector v = vertices.get((i) % vertices.size());
-    PVector p = vertices.get((i + 1) % vertices.size());
-    
+    PVector p = vertices.get((i+1) % vertices.size());
+
     PVector vm = vertices.get((i - 1 + vertices.size()) % vertices.size());
     PVector pm = vertices.get((i + 2) % vertices.size());
-    
+
     // On traite le cas des "zig-zag"
     if (determinant(v.copy().sub(vm), p.copy().sub(v)) * determinant(p.copy().sub(v), pm.copy().sub(p)) < 0) {
-      return new PVector(0,0);
+      return new PVector(0, 0);
     }
-    
+
+    PVector d = v.copy().sub(p); // d est un vecteur directeur de l'arrête.
+    PVector n = new PVector(-d.y, d.x); // n est un vecteur normal à l'arrête.
+    n = n.div(n.mag());
+    // n est unitaire normal, mais il s'agit encore de fixer son orientation
+    if (n.dot(vm.copy().sub(v)) < 0) n.mult(-1);
+    return n;
+  }
+  
+  ArrayList<PVector> getUnitFlows(){
+    ArrayList<PVector> vectors = new ArrayList<PVector>();
+    for (int i = 0; i < vertices.size(); i++) {
+      vectors.add(getUnitFlow(i));
+    }
+    return vectors;
+  }
+
+  PVector getMengerEdgeFlow(int i) { // Rend le vecteur courbure de Menger en l'arrete (i,i+1)
+    PVector v = vertices.get((i) % vertices.size());
+    PVector p = vertices.get((i + 1) % vertices.size());
+
+    PVector vm = vertices.get((i - 1 + vertices.size()) % vertices.size());
+    PVector pm = vertices.get((i + 2) % vertices.size());
+
+    if (determinant(v.copy().sub(vm), p.copy().sub(v)) * determinant(p.copy().sub(v), pm.copy().sub(p)) < 0) {
+      return new PVector(0, 0);
+    }
+
     PVector v2 = midAngle(v.copy(), p.copy(), vm.copy());
     PVector p2 = midAngle(p.copy(), v.copy(), pm.copy());
-    
+
     PVector intersection = intersection(v.copy(), v2.copy(), p.copy(), p2.copy());
-    if (intersection == null) return null;
-    
+    if (intersection == null) return new PVector(0, 0);
+
     PVector d = v.copy().sub(p); // d est un vecteur directeur linéaire de l'arrête
     PVector n = new PVector(-d.y, d.x); // n est un vecteur normal à d
     n.div(n.mag());
     float r = abs(intersection.sub(v).dot(n));
-    
+
     n.mult(1 / r);
-    
+
     // On s'assure que le vecteur est orienté dans le bon sens
     if (n.dot(vm.copy().sub(v)) < 0) n.mult(-1);
-    
+
     return n;
-    
   }
 
   ArrayList<PVector> getMengerEdgeFlows() {
@@ -314,18 +335,17 @@ class Curve {
     }
     return vectors;
   }
-  
+
   PVector getNeighborEdgeFlow(int i) {
     PVector v = vertices.get((i) % vertices.size());
     PVector p = vertices.get((i + 1) % vertices.size());
-    
+
     PVector vm = vertices.get((i - 1 + vertices.size()) % vertices.size());
     PVector pm = vertices.get((i + 2) % vertices.size());
-    
+
     return vm.copy().add(pm).sub(v).sub(p);
-    
   }
-  
+
   ArrayList<PVector> getNeighborEdgeFlows() {
     ArrayList<PVector> vectors = new ArrayList<PVector>();
     for (int i = 0; i < vertices.size(); i++) {
@@ -333,7 +353,7 @@ class Curve {
     }
     return vectors;
   }
-  
+
   ArrayList<PVector> flow(ArrayList<PVector> f, float tau) {
     ArrayList<PVector> vectors = new ArrayList<PVector>();
     for (int i = 0; i < f.size(); i++) {
@@ -341,7 +361,7 @@ class Curve {
     }
     return vectors;
   }
-  
+
   ArrayList<PVector> areaGradient() {  // n-vector gradient of the area, for open or closed curves
     ArrayList<PVector> gradA = new ArrayList<PVector>();
     int n = vertices.size();
@@ -367,24 +387,23 @@ class Curve {
     return(nsum(H, nmult(gA, lambda)));
   }
 
-  
+
   void drawEdgeFlow(ArrayList<PVector> H) {
     for (int i = 0; i < vertices.size(); i++) {
       PVector v = vertices.get((i) % vertices.size());
       PVector p = vertices.get((i + 1) % vertices.size());
-      
+
       p = p.copy().add(v).div(2);
-      
+
       PVector h = H.get(i);
-      
+
       if (h != null) {
         h.mult(1000);
         stroke(0, 200, 255);
         line(p.x, p.y, p.x + h.x, p.y + h.y);
       }
-    }  
+    }
   }
-  
 }
 
 
@@ -400,25 +419,24 @@ class Curve {
  * @return Un point de la bissectrice de l'angle.
  */
 PVector midAngle(PVector center, PVector left, PVector right) {
-  
+
   // Par acquis de conscience, on copie les 3 vecteurs
   center = center.copy();
   left = left.copy();
   right = right.copy();
-  
+
   // On se place dans le cas ou le centre est zero
   left.sub(center);
   right.sub(center);
-  
+
   // On normalize left et right
   left.div(left.mag());
   right.div(right.mag());
-  
+
   // La somme des points est sur la bissectrice
   left.add(right);
 
   return center.add(left);
-  
 }
 
 /**
@@ -432,18 +450,18 @@ PVector midAngle(PVector center, PVector left, PVector right) {
  * @return Le PVector de l'intersection des deux droites.
  */
 PVector intersection(PVector a1, PVector a2, PVector b1, PVector b2) {
-  
+
   a1.z = 1;
   a2.z = 1;
   b1.z = 1;
   b2.z = 1;
-  
+
   // En coordonnée barycentrique, l'intersection est (a1 Λ a2) Λ (b1 Λ b2)
   PVector p = a1.cross(a2).cross(b1.cross(b2));
-  
+
   // On vérifie par acquis de conscience que les droites ne sont pas parrallèles
   if (p.z == 0) return null;
-  
+
   // On retourne le point obtenu
   p.div(p.z);
   return p;
@@ -469,10 +487,10 @@ float determinant(PVector a, PVector b) {
  */
 ArrayList<PVector> edgeFlowToVectorFlow(ArrayList<PVector> edgeFlow) {
   ArrayList<PVector> vectorFlow = new ArrayList<PVector>();
-  for(int i = 0; i< edgeFlow.size(); i++){
-      PVector edgeFlow1 = edgeFlow.get(i);
-      PVector edgeFlow2 = edgeFlow.get((i - 1 + edgeFlow.size()) % edgeFlow.size());
-      vectorFlow.add(edgeFlow1.copy().add(edgeFlow2));
+  for (int i = 0; i< edgeFlow.size(); i++) {
+    PVector edgeFlow1 = edgeFlow.get(i);
+    PVector edgeFlow2 = edgeFlow.get((i - 1 + edgeFlow.size()) % edgeFlow.size());
+    vectorFlow.add(edgeFlow1.copy().add(edgeFlow2));
   }
   return vectorFlow;
 }
