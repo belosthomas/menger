@@ -1,14 +1,15 @@
 /*****
  
  TODO : 
- 1. Flow unitaire
+ 1. Ajouter un en-tête au code pour l'utilisateur
+ 2. Affichage du flot (automatisation du facteur mutliplicatif ?)
  4. Chirurgie
- 5. UN CODE TOUT JOLI (Nom et commentaire) !
+ 5. UN CODE TOUT JOLI (Commentaires) !
  
  *****/
 
 Curve C = new Curve();
-float vertexSize = 10;    // for drawing vertices as disks
+float vertexSize = 10;
 int backgroundColor = 255;
 boolean make_curve = true;
 
@@ -22,14 +23,13 @@ static int FLOW_UNITAIRE = 1;
 static int FLOW_VOISINS = 2;
 static int NUM_MODE = 3;
 
-boolean flow = false;
-int flow_type = FLOW_MENGER;
-int flow_renormalization = A_PRIORI;
-float power = 1;
+boolean flow = false;                  // pour activation du flot
+int flow_type = FLOW_MENGER;           // champ par défaut
+int flow_renormalization = A_PRIORI;   // renormalisation par défaut
+float power = 1;                       // puissance par défaut
+float tau = 10;                        // pas de temps par défaut
 
-float tau = 10;       // basic time interval
-
-int informationYOffset = 10;
+int informationYOffset = 10;           // paramêtre pour affichage du texte
 
 void setup() {
   frameRate(25);
@@ -42,6 +42,7 @@ void draw() {
 
   ArrayList<PVector> edgeFlow = new ArrayList<PVector>();
 
+  // On récupère sous la variable edgeFlow le champ des arrêtes.
   if (flow_type == FLOW_MENGER) {
     edgeFlow = C.getMengerEdgeFlows();
   }
@@ -55,8 +56,11 @@ void draw() {
     edgeFlow = C.getNeighborEdgeFlows();
   }
 
+  // On converti le champ en question en champ sur les sommets pour traitement.
   ArrayList<PVector> vectorFlow = npow(edgeFlowToVectorFlow(edgeFlow), power);
 
+
+  // Si le flot est lancé, on calcule la courbe suivante, avec potentielle renormalisation.
   if (flow) {
 
     if (flow_renormalization == NON_RENORMALIZE) {
@@ -86,18 +90,18 @@ void draw() {
   }
 
 
-  background(backgroundColor);              // erases for new images
-  translate(width/2, height/2);  // coordinate offset to center the originf
+  background(backgroundColor);
+  translate(width/2, height/2);
   C.drawCurve();
 
   informationYOffset = 10;
 
   drawInformationText("nombre de tours : "+C.turningNumber());
   drawInformationText("aire : "+C.area());
-  drawInformationText("tau = " + tau + " (utiliser 'p' et 'm' pour changer)");
-  drawInformationText("champ = " + typeToText(flow_type) + " (utiliser 'a' pour changer)");
-  drawInformationText("renormalisation = " + renormalizationToText(flow_renormalization) + " (utiliser 'z' pour changer)");
-  drawInformationText("puissance = " + power  + " (utiliser 'u' et 'j' pour changer)");
+  drawInformationText("tau = " + tau + " ('p' pour augmenter et 'm' pour diminuer)");
+  drawInformationText("champ = " + typeToText(flow_type) + " ('a' pour changer)");
+  drawInformationText("renormalisation = " + renormalizationToText(flow_renormalization) + " ('z' pour changer)");
+  drawInformationText("puissance = " + power  + " ('u' pour augmenter et 'j' pour diminuer)");
 
   C.drawEdgeFlow(edgeFlow);
   C.drawCentroid();
@@ -125,7 +129,7 @@ String renormalizationToText(int m) {
 void mouseClicked() {
   PVector point = new PVector();
   if (make_curve) {
-    point.set(mouseX - width / 2, mouseY - height / 2); // coordinate offset to center the origin
+    point.set(mouseX - width / 2, mouseY - height / 2);
     C.addVertex(point);
   }
 }  
@@ -172,11 +176,11 @@ void keyReleased() {
   }
 }
 
-////// CLASSES  ////////
+////// CLASSE  ////////
 
 class Curve {
   ArrayList<PVector> vertices = new ArrayList<PVector>();
-  boolean closed;    // true if the curve is closed
+  boolean closed;    // vrai si la courbeest close.
 
   void addVertex(PVector p) {
     vertices.add(p);
@@ -186,7 +190,7 @@ class Curve {
     int n = vertices.size();
     PVector current, next;
     stroke(0, 0, 0);
-    // draw lines first
+    // Tracé des arrêtes
     for (int i=0; i < n-1; i++) {
       current = vertices.get(i);
       next = vertices.get(i+1);
@@ -198,7 +202,7 @@ class Curve {
       line(current.x, current.y, next.x, next.y);
     }
 
-    // now draw vertices
+    // tracé des sommets
     for (int i=0; i < n; i++) {
       current = vertices.get(i);
       ellipse(current.x, current.y, vertexSize, vertexSize);
@@ -213,7 +217,7 @@ class Curve {
     int n = vertices.size();
     float a = 0;
     for (int i=0; i<n; i++) { 
-      PVector e1 = C.vertices.get(i).copy();    // so that the i-th vertex is not modified
+      PVector e1 = C.vertices.get(i).copy();
       a += -e1.cross(C.vertices.get((i+1)%n)).z; // vertical part of the cross product
       // minus sign because the screen in inverted in Processing
     }
@@ -229,7 +233,7 @@ class Curve {
       v2 = PVector.sub(vertices.get(i), vertices.get((i+1)%n));
       totalAngle += arcAngle(v1, v2);
     }
-    return(-round(totalAngle/TWO_PI+0)); // inverted to compensate for screen symmetry
+    return(-round(totalAngle/TWO_PI+0)); // opposé pour palier la symmétrie de processing
   }
 
   PVector centroid() {
@@ -271,22 +275,22 @@ class Curve {
   }
 
   PVector getUnitFlow(int i) { // flot de norme 1, rentrant, perpendiculaire à l'arrête
-    PVector v = vertices.get((i) % vertices.size());
-    PVector p = vertices.get((i+1) % vertices.size());
+    PVector current = vertices.get((i) % vertices.size());
+    PVector next = vertices.get((i+1) % vertices.size());
 
-    PVector vm = vertices.get((i - 1 + vertices.size()) % vertices.size());
-    PVector pm = vertices.get((i + 2) % vertices.size());
+    PVector previous = vertices.get((i - 1 + vertices.size()) % vertices.size());
+    PVector after = vertices.get((i + 2) % vertices.size());
 
     // On traite le cas des "zig-zag"
-    if (determinant(v.copy().sub(vm), p.copy().sub(v)) * determinant(p.copy().sub(v), pm.copy().sub(p)) < 0) {
+    if (determinant(current.copy().sub(previous), next.copy().sub(current)) * determinant(next.copy().sub(current), after.copy().sub(next)) < 0) {
       return new PVector(0, 0);
     }
 
-    PVector d = v.copy().sub(p); // d est un vecteur directeur de l'arrête.
+    PVector d = current.copy().sub(next); // d est un vecteur directeur de l'arrête.
     PVector n = new PVector(-d.y, d.x); // n est un vecteur normal à l'arrête.
     n = n.div(n.mag());
     // n est unitaire normal, mais il s'agit encore de fixer son orientation
-    if (n.dot(vm.copy().sub(v)) < 0) n.mult(-1);
+    if (n.dot(previous.copy().sub(current)) < 0) n.mult(-1);
     return n;
   }
   
@@ -299,31 +303,31 @@ class Curve {
   }
 
   PVector getMengerEdgeFlow(int i) { // Rend le vecteur courbure de Menger en l'arrete (i,i+1)
-    PVector v = vertices.get((i) % vertices.size());
-    PVector p = vertices.get((i + 1) % vertices.size());
+    PVector current = vertices.get((i) % vertices.size());
+    PVector next = vertices.get((i + 1) % vertices.size());
 
-    PVector vm = vertices.get((i - 1 + vertices.size()) % vertices.size());
-    PVector pm = vertices.get((i + 2) % vertices.size());
+    PVector previous = vertices.get((i - 1 + vertices.size()) % vertices.size());
+    PVector after = vertices.get((i + 2) % vertices.size());
 
-    if (determinant(v.copy().sub(vm), p.copy().sub(v)) * determinant(p.copy().sub(v), pm.copy().sub(p)) < 0) {
+    if (determinant(current.copy().sub(previous), next.copy().sub(current)) * determinant(next.copy().sub(current), after.copy().sub(next)) < 0) {
       return new PVector(0, 0);
     }
 
-    PVector v2 = midAngle(v.copy(), p.copy(), vm.copy());
-    PVector p2 = midAngle(p.copy(), v.copy(), pm.copy());
+    PVector v2 = midAngle(current.copy(), next.copy(), previous.copy());
+    PVector p2 = midAngle(next.copy(), current.copy(), after.copy());
 
-    PVector intersection = intersection(v.copy(), v2.copy(), p.copy(), p2.copy());
+    PVector intersection = intersection(current.copy(), v2.copy(), next.copy(), p2.copy());
     if (intersection == null) return new PVector(0, 0);
 
-    PVector d = v.copy().sub(p); // d est un vecteur directeur linéaire de l'arrête
+    PVector d = current.copy().sub(next); // d est un vecteur directeur linéaire de l'arrête
     PVector n = new PVector(-d.y, d.x); // n est un vecteur normal à d
     n.div(n.mag());
-    float r = abs(intersection.sub(v).dot(n));
+    float r = abs(intersection.sub(current).dot(n));
 
     n.mult(1 / r);
 
     // On s'assure que le vecteur est orienté dans le bon sens
-    if (n.dot(vm.copy().sub(v)) < 0) n.mult(-1);
+    if (n.dot(previous.copy().sub(current)) < 0) n.mult(-1);
 
     return n;
   }
@@ -337,13 +341,13 @@ class Curve {
   }
 
   PVector getNeighborEdgeFlow(int i) {
-    PVector v = vertices.get((i) % vertices.size());
-    PVector p = vertices.get((i + 1) % vertices.size());
+    PVector current = vertices.get((i) % vertices.size());
+    PVector next = vertices.get((i + 1) % vertices.size());
 
-    PVector vm = vertices.get((i - 1 + vertices.size()) % vertices.size());
-    PVector pm = vertices.get((i + 2) % vertices.size());
+    PVector previous = vertices.get((i - 1 + vertices.size()) % vertices.size());
+    PVector after = vertices.get((i + 2) % vertices.size());
 
-    return vm.copy().add(pm).sub(v).sub(p);
+    return previous.copy().add(after).sub(current).sub(next);
   }
 
   ArrayList<PVector> getNeighborEdgeFlows() {
@@ -362,14 +366,14 @@ class Curve {
     return vectors;
   }
 
-  ArrayList<PVector> areaGradient() {  // n-vector gradient of the area, for open or closed curves
+  ArrayList<PVector> areaGradient() {  // gradient de l'aire dans l'espace des courbes en self
     ArrayList<PVector> gradA = new ArrayList<PVector>();
     int n = vertices.size();
     PVector e1 = new PVector();
     for (int i=0; i<n; i++) {
-      if (!this.closed && (i==0 || i==n-1)) {
-        if (i==0) e1 = vertices.get(1).copy();  // only the next position
-        if (i==n-1) e1 = vertices.get(n-2).copy().mult(-1); // only the previous position, negative
+      if (!this.closed && (i==0 || i==n-1)) { // traitement des courbes ouvertes.
+        if (i==0) e1 = vertices.get(1).copy();
+        if (i==n-1) e1 = vertices.get(n-2).copy().mult(-1);
       } else {
         e1 = vertices.get((i+1)%n).copy();
         e1.sub(vertices.get((i-1+n)%n));
@@ -381,7 +385,7 @@ class Curve {
     return(gradA);
   }
 
-  ArrayList<PVector> getRenormalized(ArrayList<PVector> H) {  // renormalized mean curvature
+  ArrayList<PVector> getRenormalized(ArrayList<PVector> H) {  // Projette un champs sur l'orthogonal du gradient de l'aire, pour préserver celle-ci
     ArrayList<PVector> gA = this.areaGradient();
     float lambda = - ndot(H, gA)/ndot(gA, gA);
     return(nsum(H, nmult(gA, lambda)));
