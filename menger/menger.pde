@@ -93,12 +93,12 @@ void draw() {
   
   informationYOffset = 10;
   
-  drawInformationText("turning number : "+C.turningNumber());
-  drawInformationText("area : "+C.area());
-  drawInformationText("tau = " + tau + " (utiliser 'u' et 'i' pour changer)");
-  drawInformationText("mode = " + typeToText(flow_type) + " (utiliser 'm' pour changer)");
-  drawInformationText("renormalisation = " + renormalizationToText(flow_renormalization) + " (utiliser 'l' pour changer)");
-  drawInformationText("power = " + power  + " (utiliser 'e' et 'r' pour changer)");
+  drawInformationText("nombre de tours : "+C.turningNumber());
+  drawInformationText("aire : "+C.area());
+  drawInformationText("tau = " + tau + " (utiliser 'p' et 'm' pour changer)");
+  drawInformationText("champ = " + typeToText(flow_type) + " (utiliser 'a' pour changer)");
+  drawInformationText("renormalisation = " + renormalizationToText(flow_renormalization) + " (utiliser 'z' pour changer)");
+  drawInformationText("puissance = " + power  + " (utiliser 'u' et 'j' pour changer)");
   
   C.drawEdgeFlow(edgeFlow);
   C.drawCentroid();
@@ -118,9 +118,9 @@ String typeToText(int m) {
 }
 
 String renormalizationToText(int m) {
-  if (m == NON_RENORMALIZE) return "Non Renormalisé";
-  if (m == A_PRIORI) return "A Priori";
-  if (m == A_POSTERIORI) return "A posteriori";
+  if (m == NON_RENORMALIZE) return "sans";
+  if (m == A_PRIORI) return "a priori";
+  if (m == A_POSTERIORI) return "a posteriori";
   return "Inconnu";
 }
 
@@ -134,7 +134,6 @@ void mouseClicked() {
 
 void keyReleased() {
   if (key == 'c') {
-    //println("curve started");
     if (make_curve && C.vertices.size() >= 3) {  // we close the loop
       C.closed = true;
     } else {  // we start a new loop
@@ -152,24 +151,24 @@ void keyReleased() {
     flow = !flow;
   }
   
-  if (key == 'm') {
+  if (key == 'a') {
     flow_type = (flow_type + 1) % NUM_MODE;
   }
   
-  if (key == 'l') {
+  if (key == 'z') {
     flow_renormalization = (flow_renormalization + 1) % NUM_RENORMALIZATION;
   }
   
-  if (key == 'u') tau *= 2;
+  if (key == 'p') tau *= 2;
   
-  if (key == 'i') tau *= 0.5;
+  if (key == 'm') tau *= 0.5;
   
-  if (key == 'e'){
+  if (key == 'u'){
    if (power >= 1) power +=1;
    else power = 1/(1/power - 1);
   }
   
-  if (key == 'r'){
+  if (key == 'j'){
    if (power > 1) power -= 1;
    else power = 1/(1/power + 1);
   }
@@ -275,7 +274,8 @@ class Curve {
   }
   
   
-  PVector getMengerEdgeFlow(int i) { // Rend le vecteur courbure de Menger en l'arrete (i,i+1) 
+  PVector getMengerEdgeFlow(int i) { // Rend le vecteur courbure de Menger en l'arrete (i,i+1)
+    if(C.vertices.size() == 2) return new PVector(0,0);
     PVector v = vertices.get((i) % vertices.size());
     PVector p = vertices.get((i + 1) % vertices.size());
     
@@ -388,7 +388,7 @@ class Curve {
 }
 
 
-//////// MENGER SUBROUTINES  ////////////
+//////// SUBROUTINES  ////////////
 
 /**
  * Retourne un point de la bissectrice de l'angle (left, center, right).
@@ -477,18 +477,14 @@ ArrayList<PVector> edgeFlowToVectorFlow(ArrayList<PVector> edgeFlow) {
   return vectorFlow;
 }
 
-//////// SUBROUTINES  ////////////
-
-Curve regularngon(int n, float xo, float yo, float radius) {
-  C = new Curve();
-  C.closed = true;    // the curve is closed
-  for (int i=0; i < n; i++) {
-    PVector p = new PVector(xo + radius*cos(i*TWO_PI/n), yo + radius*sin(i*TWO_PI/n));
-    C.addVertex(p);
-  }
-  return(C);
-}
-
+/**
+ * Calcule la valeur de la mesure d'un angle dans ]-pi,pi].
+ *
+ * @param v1 premier vecteur de l'angle.
+ * @param v2 deuxième vecteur de l'angle.
+ *
+ * @return valeur de l'angle.
+ */
 float arcAngle(PVector v1, PVector v2) {
   float r = atan2(v2.y, v2.x) - atan2(v1.y, v1.x);
   if (r<-PI) {
@@ -500,19 +496,14 @@ float arcAngle(PVector v1, PVector v2) {
   return(r);
 }
 
-float distance(PVector p1, PVector p2) {
-  return sqrt(pow((p1.x - p2.x),2) + pow((p1.y - p2.y),2));
-}
-
-float distance(PVector p1) {
-  return sqrt(pow(p1.x,2) + pow(p1.y,2));
-}
-
-PVector vectorToUnit(PVector v) {
-  float d = distance(v);
-  return new PVector(v.x / d, v.y / d);
-}
-
+/**
+ * Retourne le produit scalaire de deux vecteurs encodés comme des listes de PVector.
+ *
+ * @param U la première liste de PVector.
+ * @param V la deuxième liste de PVector.
+ *
+ * @return La norme 1 du produit scalaire terme à terme de U et V.
+ */
 float ndot(ArrayList<PVector> U, ArrayList<PVector> V) {  // scalar product between n-vectors
   float s = 0;
   for (int i=0; i<min(U.size(), V.size()); i++) {
@@ -521,7 +512,15 @@ float ndot(ArrayList<PVector> U, ArrayList<PVector> V) {  // scalar product betw
   return(s);
 }
 
-ArrayList<PVector> nsum(ArrayList<PVector> U, ArrayList<PVector> V) {  // addition between 2 n-vectors
+/**
+ * Retourne la somme terme à terme de listes de PVector
+ *
+ * @param U La première liste de PVector.
+ * @param V La deuxième liste de PVector.
+ *
+ * @return La somme des listes terme à terme.
+ */
+ArrayList<PVector> nsum(ArrayList<PVector> U, ArrayList<PVector> V) {
   ArrayList<PVector> W = new ArrayList<PVector>();
   for (int i=0; i<min(U.size(), V.size()); i++) {
     W.add(PVector.add(U.get(i), V.get(i)));
@@ -529,23 +528,45 @@ ArrayList<PVector> nsum(ArrayList<PVector> U, ArrayList<PVector> V) {  // additi
   return(W);
 }
 
-ArrayList<PVector> nmult(ArrayList<PVector> U, float lambda) {  // multiplication of n-vector by a float
+/**
+ * Multiplie une liste de Pvector par un scalaire.
+ *
+ * @param U La liste de PVector
+ * @param lambda Le scalaire
+ *
+ * @return Le produit lambda*U
+ */
+ArrayList<PVector> nmult(ArrayList<PVector> U, float lambda) { 
   ArrayList<PVector> W = new ArrayList<PVector>();
   for (int i=0; i<U.size(); i++) {
     W.add(PVector.mult(U.get(i), lambda));
   }
   return(W);
 }
-
-ArrayList<PVector> npow(ArrayList<PVector> U, float lambda) {  // multiplication of n-vector by a float
+/**
+ * Mets à la puissance la norme de chaque PVector d'une liste
+ *
+ * @param U Une liste de PVector.
+ * @param n La puissance à laquelle on veut élever les normes des vecteurs.
+ *
+ * @return La liste des PVector d'origine dont la norme a été mise à la puissance n.
+ */
+ArrayList<PVector> npow(ArrayList<PVector> U, float n) {
   ArrayList<PVector> W = new ArrayList<PVector>();
   for (int i=0; i<U.size(); i++) {
-    W.add(new PVector(pow(U.get(i).x, lambda), pow(U.get(i).y, lambda), pow(U.get(i).z, lambda)));
+    W.add(new PVector(pow(U.get(i).x, n), pow(U.get(i).y, n), pow(U.get(i).z, n)));
   }
   return(W);
 }
 
-ArrayList<PVector> nnorm(ArrayList<PVector> U) {  // multiplication of n-vector by a float
+/**
+ * divise chaque PVector d'une liste par sa norme.
+ *
+ * @param La liste des PVector à normaliser.
+ *
+ * @return La liste des PVector normalisés.
+ */
+ArrayList<PVector> nnorm(ArrayList<PVector> U) {
   ArrayList<PVector> W = new ArrayList<PVector>();
   for (int i=0; i<U.size(); i++) {
     W.add(U.get(i).copy().div(U.get(i).mag()));
