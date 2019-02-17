@@ -33,10 +33,9 @@ int informationYOffset = 10;
 
 void setup() {
   frameRate(25);
-  size(500, 500);
+  size(500, 600);
   background(backgroundColor);
-  fill(50); // text color
-  // C = regularngon(5, 0, 0, 100);
+  fill(50);
 }
 
 void draw() {
@@ -392,13 +391,13 @@ class Curve {
 //////// MENGER SUBROUTINES  ////////////
 
 /**
- * Retourne un point p tel que l'angle entre les segments [center;p] et [center;right] et celui entre les segments [center;left] et [center;p] soit les mêmes, et que la distance entre ce point et le centre soit 1.
+ * Retourne un point de la bissectrice de l'angle (left, center, right).
  *
- * @param center Le point de référence
- * @param left Le premier point
- * @param right Le deuxième point
+ * @param center Le sommet de l'angle.
+ * @param left Un point de la première droite de l'angle.
+ * @param right Un point de l'autre droite de l'angle.
  *
- * @return Le point au milieu de l'angle
+ * @return Un point de la bissectrice de l'angle.
  */
 PVector midAngle(PVector center, PVector left, PVector right) {
   
@@ -407,7 +406,7 @@ PVector midAngle(PVector center, PVector left, PVector right) {
   left = left.copy();
   right = right.copy();
   
-  // On se place dans le cas ou le centre est égal à zero
+  // On se place dans le cas ou le centre est zero
   left.sub(center);
   right.sub(center);
   
@@ -415,10 +414,9 @@ PVector midAngle(PVector center, PVector left, PVector right) {
   left.div(left.mag());
   right.div(right.mag());
   
-  // Le point d'angle entre left et right et l'addition de ses deux points
+  // La somme des points est sur la bissectrice
   left.add(right);
-    
-  // On retourne ce point dans le cas ou le centre n'est plus égal à zéro
+
   return center.add(left);
   
 }
@@ -426,12 +424,12 @@ PVector midAngle(PVector center, PVector left, PVector right) {
 /**
  * Retourne le PVector de l'intersection de deux droites passant respectivemetnt par a1 et a2, et b1 et b2.
  *
- * @param a1 Un premier point appartenant à la première droite
- * @param a2 Un deuxième point appartenant à la première droite
- * @param b1 Un premier point appartenant à la deuxième droite
- * @param b2 Un deuxième point appartenant à la deuxième droite
+ * @param a1 Un premier point appartenant à la première droite.
+ * @param a2 Un deuxième point appartenant à la première droite.
+ * @param b1 Un premier point appartenant à la deuxième droite.
+ * @param b2 Un deuxième point appartenant à la deuxième droite.
  *
- * @return Le PVector de l'intersection de deux droites
+ * @return Le PVector de l'intersection des deux droites.
  */
 PVector intersection(PVector a1, PVector a2, PVector b1, PVector b2) {
   
@@ -450,11 +448,25 @@ PVector intersection(PVector a1, PVector a2, PVector b1, PVector b2) {
   p.div(p.z);
   return p;
 }
-
+/**
+ * Retourne le determinant de la matrice définie par deux vecteurs de dimension deux.
+ *
+ * @param a un PVector.
+ * @param b un PVector.
+ *
+ * @return Le determinant de a et b.
+ */
 float determinant(PVector a, PVector b) {
   return a.x * b.y - a.y * b.x;
 }
 
+/**
+ * Transforme un champ sur les arrêtes en un champ sur les sommets
+ *
+ * @param edgeFlow le champ sur les arrêtes.
+ * 
+ * @return le champ sur les sommets
+ */
 ArrayList<PVector> edgeFlowToVectorFlow(ArrayList<PVector> edgeFlow) {
   ArrayList<PVector> vectorFlow = new ArrayList<PVector>();
   for(int i = 0; i< edgeFlow.size(); i++){
