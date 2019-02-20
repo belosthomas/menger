@@ -2,10 +2,7 @@
  
  TODO : 
  1. Ajouter un en-tête au code pour l'utilisateur
- 2. Affichage du flot (automatisation du facteur mutliplicatif ?)
- 4. Chirurgie
- 5. UN CODE TOUT JOLI (Commentaires) !
- 
+ 2. Affichage du flot (automatisation du facteur mutliplicatif ?) division par taille moyenne vecteur
  *****/
 
 Curve C = new Curve();
