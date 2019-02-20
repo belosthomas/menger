@@ -28,9 +28,13 @@ int flow_type = FLOW_MENGER;           // champ par défaut
 int flow_renormalization = A_PRIORI;   // renormalisation par défaut
 float power = 1;                       // puissance par défaut
 float tau = 10;                        // pas de temps par défaut
+float surge_threshold = 5;             // threshold de la chirurgie
 
 int informationYOffset = 10;           // paramêtre pour affichage du texte
 
+/**
+ * La fonction d'initialisation de Processing, qui va initialiser la fenetre.
+ */
 void setup() {
   frameRate(25);
   size(500, 600);
@@ -38,6 +42,7 @@ void setup() {
   fill(50);
 }
 
+c
 void draw() {
 
   ArrayList<PVector> edgeFlow = new ArrayList<PVector>();
@@ -48,7 +53,6 @@ void draw() {
   }
 
   if (flow_type == FLOW_UNITAIRE) {
-    // todo
     edgeFlow = C.getUnitFlows();
   }
 
@@ -82,36 +86,52 @@ void draw() {
 
     if (flow_renormalization == A_POSTERIORI) {
       PVector oldCentroid = C.centroid();
-      C.vertices = C.flow(vectorFlow, tau);
+      C.vertices = C.flow(C.getRenormalized(vectorFlow), tau);
 
       PVector newCentroid =  C.centroid();
       C.vertices = C.getTranslation(oldCentroid.sub(newCentroid));
     }
   }
+  
+  // On applique la chirurgie
+  C.surge(surge_threshold);
 
-
+  // Et on affiche la courbe...
   background(backgroundColor);
   translate(width/2, height/2);
   C.drawCurve();
 
+  // ...les informations...
   informationYOffset = 10;
-
   drawInformationText("nombre de tours : "+C.turningNumber());
   drawInformationText("aire : "+C.area());
   drawInformationText("tau = " + tau + " ('p' pour augmenter et 'm' pour diminuer)");
   drawInformationText("champ = " + typeToText(flow_type) + " ('a' pour changer)");
   drawInformationText("renormalisation = " + renormalizationToText(flow_renormalization) + " ('z' pour changer)");
   drawInformationText("puissance = " + power  + " ('u' pour augmenter et 'j' pour diminuer)");
+  drawInformationText("threshold de chirurgie = " + surge_threshold  + " ('o' pour augmenter et 'l' pour diminuer)");
 
+  // ...et le flow !
   C.drawEdgeFlow(edgeFlow);
   C.drawCentroid();
 }
 
+/**
+ * Cette fonction permet d'écrire du texte empilé automatiquement.
+ *
+ * @param str Le texte à écrire à l'écran.
+ */
 void drawInformationText(String str) {
   text(str, -width/2+10, height/2-informationYOffset);
   informationYOffset += 20;
 }
 
+/**
+ * Cette fonction convertie un type de flow en texte. Utile pour l'affichage.
+ *
+ * @param m Le type de flow
+ * @return Un texte représentant le nom du flow
+ */
 String typeToText(int m) {
   if (m == FLOW_MENGER) return "Menger";
   if (m == FLOW_UNITAIRE) return "Unitaire";
@@ -119,6 +139,12 @@ String typeToText(int m) {
   return "Inconnu";
 }
 
+/**
+ * Cette fonction convertie un type de renormalisation en texte. Utile pour l'affichage.
+ *
+ * @param m Le type de renormalisation
+ * @return Un texte représentant le nom de la renormalisation
+ */
 String renormalizationToText(int m) {
   if (m == NON_RENORMALIZE) return "sans";
   if (m == A_PRIORI) return "a priori";
@@ -126,6 +152,9 @@ String renormalizationToText(int m) {
   return "Inconnu";
 }
 
+/**
+ * Fonction de processing appelée lors du clic de la souris.
+ */
 void mouseClicked() {
   PVector point = new PVector();
   if (make_curve) {
@@ -134,6 +163,9 @@ void mouseClicked() {
   }
 }  
 
+/**
+ * Fonction de processing appellé lorque qu'une touche est relachée.
+ */
 void keyReleased() {
   if (key == 'c') {
     if (make_curve && C.vertices.size() >= 3) {  // we close the loop
@@ -164,6 +196,10 @@ void keyReleased() {
   if (key == 'p') tau *= 2;
 
   if (key == 'm') tau *= 0.5;
+  
+  if (key == 'o') surge_threshold *= 2;
+  
+  if (key == 'l') surge_threshold *= 0.5;
 
   if (key == 'u') {
     if (power >= 1) power +=1;
@@ -176,16 +212,25 @@ void keyReleased() {
   }
 }
 
-////// CLASSE  ////////
-
+/**
+ * Voici la classe Curve. Cette classe va contenir toutes les fonctions nécéssaires au manipulation d'une courbe.
+ */
 class Curve {
-  ArrayList<PVector> vertices = new ArrayList<PVector>();
-  boolean closed;    // vrai si la courbeest close.
+  ArrayList<PVector> vertices = new ArrayList<PVector>(); // La liste des vertices de la courbe
+  boolean closed;    // vrai si la courbe est fermée.
 
+  /**
+   * Ajoute un vertex à la courbe.
+   *
+   * @param p Le vertex à ajouter.
+   */
   void addVertex(PVector p) {
     vertices.add(p);
   }
 
+  /**
+   * Dessine la courbe à l'écran
+   */
   void drawCurve() {
     int n = vertices.size();
     PVector current, next;
@@ -209,10 +254,18 @@ class Curve {
     }
   }
 
+  /**
+   * Retourne le nombre de vertex de la courbe.
+   * @return Le nombre de vertex de la courbe
+   */
   int size() {
     return vertices.size();
   }
 
+  /**
+   * Calcul et retourne l'air de la courbe
+   * @return L'air de la courbe
+   */
   float area() {
     int n = vertices.size();
     float a = 0;
@@ -224,6 +277,10 @@ class Curve {
     return(a/2);
   }
 
+  /**
+   * Calcul et retourne le turning number de la courbe
+   * @return Le turning number de la courbe
+   */
   int turningNumber() {
     int n = vertices.size();
     float totalAngle = 0;
@@ -236,6 +293,10 @@ class Curve {
     return(-round(totalAngle/TWO_PI+0)); // opposé pour palier la symmétrie de processing
   }
 
+  /**
+   * Calcul et retourne le centroid de la courbe
+   * @return Le centroid de la courbe
+   */
   PVector centroid() {
     if (vertices.size() == 0) {
       return new PVector(0, 0);
@@ -248,12 +309,20 @@ class Curve {
     return new PVector(x / vertices.size(), y / vertices.size());
   }
 
+  /**
+   * Calcul et affiche le centroid de la courbe à l'écran
+   */
   void drawCentroid() {
     stroke(0, 200, 0);
     PVector current = centroid();
     ellipse(current.x, current.y, vertexSize, vertexSize);
   }
 
+  /**
+   * Retourne une liste de vertex représentant une nouvelle courbe agrandit par un facteur de r.
+   * @param r Le facteur d'agrandissement
+   * @return La nouvelle courbe
+   */
   ArrayList<PVector> getHomothetic(float r) {
     PVector c = centroid();
 
@@ -265,6 +334,11 @@ class Curve {
     return vectors;
   }
 
+  /**
+   * Retourne une liste de vertex représentant une nouvelle courbe translaté par un vecteur t.
+   * @param r La translation a appliqué
+   * @return La nouvelle courbe
+   */
   ArrayList<PVector> getTranslation(PVector t) {    
     ArrayList<PVector> vectors = new ArrayList<PVector>();
     for (int i = 0; i < vertices.size(); i++) {
@@ -274,6 +348,11 @@ class Curve {
     return vectors;
   }
 
+  /**
+   * Retourne le flow unitaire pour l'arête entre i et i + 1.
+   * @param i L'identifiant de l'arête à traiter
+   * @return Le flow de l'arête entre i et i + 1
+   */
   PVector getUnitFlow(int i) { // flot de norme 1, rentrant, perpendiculaire à l'arrête
     PVector current = vertices.get((i) % vertices.size());
     PVector next = vertices.get((i+1) % vertices.size());
@@ -294,6 +373,9 @@ class Curve {
     return n;
   }
   
+  /**
+   * @return le flow unitaire pour toutes les arêtes
+   */
   ArrayList<PVector> getUnitFlows(){
     ArrayList<PVector> vectors = new ArrayList<PVector>();
     for (int i = 0; i < vertices.size(); i++) {
@@ -302,6 +384,11 @@ class Curve {
     return vectors;
   }
 
+  /**
+   * Retourne le flow de menger pour l'arête entre i et i + 1.
+   * @param i L'identifiant de l'arête à traiter
+   * @return Le flow de l'arête entre i et i + 1
+   */
   PVector getMengerEdgeFlow(int i) { // Rend le vecteur courbure de Menger en l'arrete (i,i+1)
     PVector current = vertices.get((i) % vertices.size());
     PVector next = vertices.get((i + 1) % vertices.size());
@@ -332,6 +419,9 @@ class Curve {
     return n;
   }
 
+  /**
+   * @return le flow de menger pour toutes les arêtes
+   */
   ArrayList<PVector> getMengerEdgeFlows() {
     ArrayList<PVector> vectors = new ArrayList<PVector>();
     for (int i = 0; i < vertices.size(); i++) {
@@ -340,6 +430,11 @@ class Curve {
     return vectors;
   }
 
+  /**
+   * Retourne le flow "neighbor" pour l'arête entre i et i + 1.
+   * @param i L'identifiant de l'arête à traiter
+   * @return Le flow de l'arête entre i et i + 1
+   */
   PVector getNeighborEdgeFlow(int i) {
     PVector current = vertices.get((i) % vertices.size());
     PVector next = vertices.get((i + 1) % vertices.size());
@@ -350,6 +445,9 @@ class Curve {
     return previous.copy().add(after).sub(current).sub(next);
   }
 
+  /**
+   * @return le flow "neighbor" pour toutes les arêtes
+   */
   ArrayList<PVector> getNeighborEdgeFlows() {
     ArrayList<PVector> vectors = new ArrayList<PVector>();
     for (int i = 0; i < vertices.size(); i++) {
@@ -358,6 +456,12 @@ class Curve {
     return vectors;
   }
 
+  /**
+   * Applique le flow à tous les vertex, et retourne les nouveaux vertex.
+   * @param f Le flow à appliquer
+   * @param tau Le facteur de temps
+   * @return Les nouveaux vertex
+   */
   ArrayList<PVector> flow(ArrayList<PVector> f, float tau) {
     ArrayList<PVector> vectors = new ArrayList<PVector>();
     for (int i = 0; i < f.size(); i++) {
@@ -366,7 +470,11 @@ class Curve {
     return vectors;
   }
 
-  ArrayList<PVector> areaGradient() {  // gradient de l'aire dans l'espace des courbes en self
+  /**
+   * Calcul le gradient de l'air dans l'espace des courbes
+   * @return Le gradient de l'air
+   */
+  ArrayList<PVector> areaGradient() {
     ArrayList<PVector> gradA = new ArrayList<PVector>();
     int n = vertices.size();
     PVector e1 = new PVector();
@@ -385,13 +493,20 @@ class Curve {
     return(gradA);
   }
 
-  ArrayList<PVector> getRenormalized(ArrayList<PVector> H) {  // Projette un champs sur l'orthogonal du gradient de l'aire, pour préserver celle-ci
+  /**
+   * Projette un champ sur l'orthogonal du gradient de l'aire, pour préserver celle-ci
+   * @return Le flow renormalisé
+   */
+  ArrayList<PVector> getRenormalized(ArrayList<PVector> H) {
     ArrayList<PVector> gA = this.areaGradient();
     float lambda = - ndot(H, gA)/ndot(gA, gA);
     return(nsum(H, nmult(gA, lambda)));
   }
 
-
+  /**
+   * Affiche le flow H de chaques arêtes
+   * @param H Le flow à afficher
+   */
   void drawEdgeFlow(ArrayList<PVector> H) {
     for (int i = 0; i < vertices.size(); i++) {
       PVector v = vertices.get((i) % vertices.size());
@@ -408,10 +523,39 @@ class Curve {
       }
     }
   }
+  
+  /**
+   * Vérifie si il est possible de faire de la chirurgie pour les vertices i et i+1, et la fait si c'est possible.
+   * La chirurgie va fusionner deux vertices si ils sont à une distance inférieur à threshold.
+   * @param i L'identifiant du vertex
+   * @param threshold Le threshold de la chirurgie
+   */
+  void surgeCheckAndMerge(int i, float threshold) {
+    PVector current = vertices.get((i) % vertices.size());
+    PVector next = vertices.get((i + 1) % vertices.size());
+    
+    if (current.copy().sub(next).mag() < threshold) {
+      current.add(next).div(2);
+      vertices.remove(next);
+    }
+    
+  }
+  
+  /**
+   * Vérifie et tente d'appliquer la chirurgie sur tout les vertices.
+   */
+  void surge(float threshold) {
+    if (vertices.size() <= 1) return;
+    for (int i = 0; i < vertices.size(); i++) {
+      surgeCheckAndMerge(i, threshold);
+    }
+  }
+  
 }
 
 
 //////// SUBROUTINES  ////////////
+
 
 /**
  * Retourne un point de la bissectrice de l'angle (left, center, right).
