@@ -1,8 +1,18 @@
 /*****
+
+ Géométrie différentielle discrète
+ Flots de courbes discrètes 2D par les arrêtes
  
- TODO : 
- 1. Ajouter un en-tête au code pour l'utilisateur
- 2. Affichage du flot (automatisation du facteur mutliplicatif ?) division par taille moyenne vecteur
+ *****
+ 
+ Doriann Albertin
+ Thomas Belos
+ 
+ *****
+ 
+ Comment ça fonctionne ?
+ Executer le programme, et laisser vous guider par les instructions.
+ 
  *****/
 
 Curve C = new Curve();
@@ -39,7 +49,7 @@ void setup() {
   fill(50);
 }
 
-c
+
 void draw() {
 
   ArrayList<PVector> edgeFlow = new ArrayList<PVector>();
@@ -108,9 +118,17 @@ void draw() {
   drawInformationText("puissance = " + power  + " ('u' pour augmenter et 'j' pour diminuer)");
   drawInformationText("threshold de chirurgie = " + surge_threshold  + " ('o' pour augmenter et 'l' pour diminuer)");
 
+  if (C.vertices.size() == 0) {
+    textAlign(CENTER);
+    textSize(30);
+    text("Cliquer pour créer un point", 0, 0);
+    textAlign(LEFT);
+    textSize(14);
+  }
+
   // ...et le flow !
   C.drawEdgeFlow(edgeFlow);
-  C.drawCentroid();
+  if (C.vertices.size() > 1) C.drawCentroid();
 }
 
 /**
@@ -505,16 +523,25 @@ class Curve {
    * @param H Le flow à afficher
    */
   void drawEdgeFlow(ArrayList<PVector> H) {
+    
+    float normAverage = 0;
+    for (int i = 0; i < H.size(); i++) {
+      normAverage += H.get(i).mag();
+    }
+    normAverage /= (float)H.size();
+    
+    System.out.println("Norm average : " + normAverage);
+    
     for (int i = 0; i < vertices.size(); i++) {
       PVector v = vertices.get((i) % vertices.size());
       PVector p = vertices.get((i + 1) % vertices.size());
 
       p = p.copy().add(v).div(2);
 
-      PVector h = H.get(i);
+      PVector h = H.get(i).copy();
 
       if (h != null) {
-        h.mult(1000);
+        h.mult(32.0 / normAverage);
         stroke(0, 200, 255);
         line(p.x, p.y, p.x + h.x, p.y + h.y);
       }
