@@ -11,7 +11,10 @@
  *****
  
  Comment ça fonctionne ?
- Executer le programme, et laisser vous guider par les instructions.
+ Une fois le programme lancé, cliquez sur la fenêtre pour ajouter un point à la courbe.
+ Une fois la courbe tracée, appuyez sur "c" pour fermer la courbe, et sur "f" pour lancer le flot.
+ Les choix du champ, de la renormalisation, de la puissance, du pas de discrétisation tau et de la puissance sont guidés à l'écran.
+ Sont proposés trois champs différents et trois renormalisations, qui sont détaillés dans le pdf joint.
  
  *****/
 
@@ -35,7 +38,7 @@ int flow_type = FLOW_MENGER;           // champ par défaut
 int flow_renormalization = A_PRIORI;   // renormalisation par défaut
 float power = 1;                       // puissance par défaut
 float tau = 10;                        // pas de temps par défaut
-float surge_threshold = 5;             // threshold de la chirurgie
+float surge_threshold = 5;             // seuil de la chirurgie
 
 int informationYOffset = 10;           // paramêtre pour affichage du texte
 
@@ -110,13 +113,13 @@ void draw() {
 
   // ...les informations...
   informationYOffset = 10;
-  drawInformationText("nombre de tours : "+C.turningNumber());
+  //drawInformationText("nombre de tours : "+C.turningNumber());
   drawInformationText("aire : "+C.area());
   drawInformationText("tau = " + tau + " ('p' pour augmenter et 'm' pour diminuer)");
   drawInformationText("champ = " + typeToText(flow_type) + " ('a' pour changer)");
   drawInformationText("renormalisation = " + renormalizationToText(flow_renormalization) + " ('z' pour changer)");
   drawInformationText("puissance = " + power  + " ('u' pour augmenter et 'j' pour diminuer)");
-  drawInformationText("threshold de chirurgie = " + surge_threshold  + " ('o' pour augmenter et 'l' pour diminuer)");
+  drawInformationText("seuil de chirurgie = " + surge_threshold  + " ('o' pour augmenter et 'l' pour diminuer)");
 
   if (C.vertices.size() == 0) {
     textAlign(CENTER);
@@ -128,7 +131,7 @@ void draw() {
 
   // ...et le flow !
   C.drawEdgeFlow(edgeFlow);
-  if (C.vertices.size() > 1) C.drawCentroid();
+  // if (C.vertices.size() > 1) C.drawCentroid(); // pour test
 }
 
 /**
@@ -530,7 +533,7 @@ class Curve {
     }
     normAverage /= (float)H.size();
     
-    System.out.println("Norm average : " + normAverage);
+    // System.out.println("Norm average : " + normAverage); // pour test
     
     for (int i = 0; i < vertices.size(); i++) {
       PVector v = vertices.get((i) % vertices.size());
