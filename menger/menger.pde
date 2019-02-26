@@ -115,11 +115,11 @@ void draw() {
   informationYOffset = 10;
   //drawInformationText("nombre de tours : "+C.turningNumber());
   drawInformationText("aire : "+C.area());
-  drawInformationText("tau = " + tau + " ('p' pour augmenter et 'm' pour diminuer)");
-  drawInformationText("champ = " + typeToText(flow_type) + " ('a' pour changer)");
-  drawInformationText("renormalisation = " + renormalizationToText(flow_renormalization) + " ('z' pour changer)");
-  drawInformationText("puissance = " + power  + " ('u' pour augmenter et 'j' pour diminuer)");
   drawInformationText("seuil de chirurgie = " + surge_threshold  + " ('o' pour augmenter et 'l' pour diminuer)");
+  drawInformationText("puissance = " + power  + " ('u' pour augmenter et 'j' pour diminuer)");
+  drawInformationText("tau = " + tau + " ('p' pour augmenter et 'm' pour diminuer)");
+  drawInformationText("renormalisation = " + renormalizationToText(flow_renormalization) + " ('z' pour changer)");
+  drawInformationText("champ = " + typeToText(flow_type) + " ('a' pour changer)");
 
   if (C.vertices.size() == 0) {
     textAlign(CENTER);
